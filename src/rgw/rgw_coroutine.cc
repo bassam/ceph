@@ -3,7 +3,7 @@
 #include "common/ceph_json.h"
 
 #include "rgw_coroutine.h"
-#include "rgw_boost_asio_yield.h"
+#include <boost/asio/yield.hpp>
 
 
 #define dout_subsys ceph_subsys_rgw

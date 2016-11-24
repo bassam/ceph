@@ -311,7 +311,7 @@ target_include_directories(ceph_test_librgw_file_nfsns PRIVATE ${FCGI_INCLUDE_DI
 target_link_libraries(ceph_test_librgw_file_nfsns
   rgw
   librados
-  boost_system
+  ${Boost_SYSTEM_LIBRARY}
   ${UNITTEST_LIBS}
   ${EXTRALIBS}
   )

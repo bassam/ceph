@@ -12,7 +12,6 @@
 #include "rgw_tools.h"
 
 #include "rgw_cr_rados.h"
-#include "rgw_boost_asio_yield.h"
 
 #define dout_subsys ceph_subsys_rgw
 

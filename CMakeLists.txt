@@ -25,6 +25,9 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
+# Build external projects. NOTE this should be done before anything else.
+include(external/CMakeLists.txt)
+
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   set(LINUX ON)
   FIND_PACKAGE(Threads)
@@ -76,6 +79,8 @@ if(FREEBSD)
   list(APPEND CMAKE_REQUIRED_INCLUDES /usr/local/include)
 endif(FREEBSD)
 
+include_directories(SYSTEM ${PROJECT_BINARY_DIR}/include)
+
 #put all the libs and binaries in one place
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -85,12 +90,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 include(CheckIncludeFiles)
 include(CheckIncludeFileCXX)
 include(CheckFunctionExists)
-
-#put all the libs and binaries in one place
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
 
 CHECK_FUNCTION_EXISTS(fallocate CEPH_HAVE_FALLOCATE)
 CHECK_FUNCTION_EXISTS(posix_fadvise HAVE_POSIX_FADVISE)
@@ -397,81 +396,6 @@ endif(WITH_FIO)
 if(LINUX)
   add_definitions(-D__linux__)
 endif(LINUX)
-
-# Boost
-option(WITH_SYSTEM_BOOST "require and build with system Boost" OFF)
-
-if (WITH_SYSTEM_BOOST)
-  if(ENABLE_SHARED)
-    set(Boost_USE_STATIC_LIBS OFF)
-  else()
-    set(Boost_USE_STATIC_LIBS ON)
-  endif()
-else()
-  set(BOOST_CFLAGS "-fPIC -w") # check on arm, etc <---XXX
-  set(BOOST_J 1 CACHE STRING
-    "max jobs for Boost build") # override w/-DBOOST_J=<n>
-  message(STATUS "BUILDING Boost Libraries at j ${BOOST_J}")
-  # 1. prep w/required components
-  set(BOOST_SOURCE_DIR "${PROJECT_SOURCE_DIR}/src/boost")
-  set(BOOST_PREFIX "${PROJECT_BINARY_DIR}/boost")
-  set(BOOST_BUILD "${PROJECT_BINARY_DIR}/boost-build")
-  set(Boost_USE_STATIC_LIBS ON)
-  execute_process(COMMAND "./bootstrap.sh"
-    "--prefix=${BOOST_PREFIX}"
-    "--with-libraries=atomic,container,context,coroutine,coroutine2,date_time,filesystem,iostreams,program_options,python,random,regex,system,thread"
-    WORKING_DIRECTORY ${BOOST_SOURCE_DIR})
-  # 2. install headers
-  set(BOOST_ROOT "${BOOST_PREFIX}")
-  execute_process(COMMAND "./b2"
-    #"--buildid=ceph" # changes lib names--can omit for static
-    "--variant=release" # could override
-    "--link=static" # avoid library versioning issues
-    "--threading=multi"
-    "--build-dir=${BOOST_BUILD}"
-    "-j${BOOST_J}"
-    "cxxflags=${BOOST_CFLAGS}"
-    "headers"
-    WORKING_DIRECTORY ${BOOST_SOURCE_DIR})
-  # 3. build and install libs
-  execute_process(COMMAND "./b2"
-    #"--buildid=ceph" # changes lib names--can omit for static
-    "--variant=release" # could override
-    "--link=static" # avoid library versioning issues
-    "--threading=multi"
-    "--build-dir=${BOOST_BUILD}"
-    "-j${BOOST_J}"
-    "cxxflags=${BOOST_CFLAGS}"
-    "install"
-    WORKING_DIRECTORY ${BOOST_SOURCE_DIR})
-  # 4. set hints for FindBoost.cmake
-  set(Boost_NO_SYSTEM_PATHS ON)
-  include_directories(BEFORE ${BOOST_PREFIX}/include)
-  # fixup for CheckIncludeFileCXX
-  set(HAVE_BOOST_ASIO_COROUTINE ON)
-
-  set(BOOST_ROOT ${BOOST_PREFIX})
-  set(Boost_NO_SYSTEM_PATHS ON)
-endif()
-
-set(Boost_USE_MULTITHREADED ON)
-
-set(BOOST_COMPONENTS
-	thread system regex random program_options date_time iostreams)
-if(WITH_MGR)
-	list(APPEND BOOST_COMPONENTS python)
-endif()
-
-# require minimally the bundled version
-find_package(Boost 1.61 COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
-include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-include_directories(SYSTEM ${PROJECT_BINARY_DIR}/include)
-
-if (NOT WITH_SYSTEM_BOOST)
-  LIST(APPEND Boost_LIBRARIES "-lz")
-endif()
-
-CHECK_INCLUDE_FILE_CXX("boost/asio/coroutine.hpp" HAVE_BOOST_ASIO_COROUTINE)
 
 find_package(Threads REQUIRED)
 

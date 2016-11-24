@@ -1,6 +1,7 @@
+
 #include "rgw_rados.h"
 #include "rgw_coroutine.h"
-#include "rgw_boost_asio_yield.h"
+#include <boost/asio/yield.hpp>
 #include "rgw_cr_rados.h"
 
 #include "cls/lock/cls_lock_client.h"

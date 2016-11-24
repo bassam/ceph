@@ -2,7 +2,7 @@
 #include "rgw_coroutine.h"
 #include "rgw_sync_module.h"
 #include "rgw_data_sync.h"
-#include "rgw_boost_asio_yield.h"
+#include <boost/asio/yield.hpp>
 #include "rgw_sync_module_es.h"
 #include "rgw_rest_conn.h"
 #include "rgw_cr_rest.h"

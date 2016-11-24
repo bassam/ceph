@@ -19,7 +19,6 @@
 #include "common/admin_socket.h"
 
 #include "rgw_common.h"
-#include "rgw_boost_asio_coroutine.h"
 
 #define RGW_ASYNC_OPS_MGR_WINDOW 100
 
