@@ -25,8 +25,10 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
-# Build external projects. NOTE this should be done before anything else.
-include(external/CMakeLists.txt)
+# FIX: package build options
+set(EXTERNAL_ROOT ${PROJECT_BINARY_DIR}/external)
+set(EXTERNAL_DOWNLOAD_DIR ${PROJECT_SOURCE_DIR}/cmake/download)
+set(EXTERNAL_LOGGING ON)
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   set(LINUX ON)
@@ -396,6 +398,25 @@ endif(WITH_FIO)
 if(LINUX)
   add_definitions(-D__linux__)
 endif(LINUX)
+
+# require minimally the bundled version
+set(WITH_SYSTEM_BOOST "AUTO" CACHE STRING "Whether to use system Boost or build it")
+
+# build boost if not found
+set(Boost_BUILD ON)
+set(Boost_EXTERNAL_VERSION 1.62)
+set(Boost_EXTERNAL_SHA256 36c96b0f6155c98404091d8ceb48319a28279ca0333fba1ad8611eb90afb2ca0)
+set(Boost_COMPONENTS thread system regex random program_options date_time iostreams python)
+set(Boost_USE_MULTITHREADED ON)
+
+if(ENABLE_SHARED)
+  set(Boost_USE_STATIC_LIBS OFF)
+else()
+  set(Boost_USE_STATIC_LIBS ON)
+endif()
+
+find_package(Boost ${Boost_EXTERNAL_VERSION} COMPONENTS ${Boost_COMPONENTS} REQUIRED)
+include_directories(BEFORE SYSTEM ${Boost_INCLUDE_DIRS})
 
 find_package(Threads REQUIRED)
 

@@ -1,18 +1,20 @@
-set(Boost_FIND_QUIETLY ON)
-
-if (${WITH_SYSTEM_BOOST} STREQUAL "ON")
-  find_package(Boost ${Boost_SYSTEM_VERSION} COMPONENTS ${Boost_COMPONENTS} REQUIRED)
-elseif (${WITH_SYSTEM_BOOST} STREQUAL "AUTO")
-  find_package(Boost ${Boost_SYSTEM_VERSION} COMPONENTS ${Boost_COMPONENTS})
+if(Boost_FIND_REQUIRED AND Boost_BUILD)
+  set(Boost_SAVED_FIND_REQUIRED ${Boost_FIND_REQUIRED})
+  set(Boost_FIND_REQUIRED)
 endif()
 
-if (Boost_FOUND)
-  message("-- Boost: found system version ${Boost_SYSTEM_VERSION}")
-else()
-  message("-- Boost: will build version ${Boost_EXTERNAL_VERSION} from source")
+include(${CMAKE_ROOT}/Modules/FindBoost.cmake)
 
-  string(REPLACE "." "_" Boost_VERSION_FILE "${Boost_EXTERNAL_VERSION}")
-  string(REPLACE ";" "," Boost_BUILD_COMPONENTS "${Boost_COMPONENTS}")
+if (Boost_SAVED_FIND_REQUIRED AND Boost_BUILD AND NOT Boost_FOUND)
+
+  include(ExternalProject)
+
+  message("-- Building Boost ${Boost_FIND_VERSION} from source")
+  message("-- Boost ${Boost_FIND_COMPONENTS}")
+
+  set(Boost_VERSION ${Boost_FIND_VERSION_MAJOR}.${Boost_FIND_VERSION_MINOR}.${Boost_FIND_VERSION_PATCH})
+  string(REPLACE "." "_" Boost_VERSION_FILE "${Boost_VERSION}")
+  string(REPLACE ";" "," Boost_BUILD_COMPONENTS "${Boost_FIND_COMPONENTS}")
 
   # FIX: ccache?
   # FIX: Boost_J
@@ -28,10 +30,10 @@ else()
   set(Boost_CFLAGS -fPIC)
   set(Boost_B2_ARGS --toolset=${toolset} --debug-configuration --buildid=ceph --variant=release --link=static --threading=multi)
 
-  ExternalProject_Add(external_boost
+  ExternalProject_Add(boost
     PREFIX ${EXTERNAL_ROOT}
     DOWNLOAD_DIR ${EXTERNAL_DOWNLOAD_DIR}
-    URL https://sourceforge.net/projects/boost/files/boost/${Boost_EXTERNAL_VERSION}/boost_${Boost_VERSION_FILE}.tar.bz2
+    URL https://sourceforge.net/projects/boost/files/boost/${Boost_VERSION}/boost_${Boost_VERSION_FILE}.tar.bz2
     URL_HASH SHA256=${Boost_EXTERNAL_SHA256}
     BUILD_IN_SOURCE 1
     PATCH_COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/user-config.jam" "<SOURCE_DIR>/tools/build/src/user-config.jam"
@@ -44,30 +46,28 @@ else()
     LOG_BUILD ${EXTERNAL_LOGGING}
     LOG_INSTALL ${EXTERNAL_LOGGING})
 
-  # set variables similar to FindBoost
+  # set variables similar to the base FindBoost
   set(Boost_FOUND 1)
   set(Boost_VERSION ${Boost_EXTERNAL_VERSION})
   set(Boost_INCLUDE_DIRS ${EXTERNAL_ROOT}/include)
   set(Boost_LIBRARY_DIRS ${EXTERNAL_ROOT}/lib)
   set(Boost_LIBRARIES)
-  foreach (component ${Boost_COMPONENTS})
+  foreach (component ${Boost_FIND_COMPONENTS})
     string (TOUPPER ${component} upper_component)
     set(Boost_${upper_component}_FOUND 1)
     set(Boost_${upper_component}_LIBRARY boost_${component})
 
     add_library(boost_${component} STATIC IMPORTED)
-    add_dependencies(boost_${component} external_boost)
+    add_dependencies(boost_${component} boost)
     set_property(TARGET boost_${component} PROPERTY IMPORTED_LOCATION "${EXTERNAL_ROOT}/lib/libboost_${component}-ceph.a")
 
     list(APPEND Boost_LIBRARIES ${Boost_${upper_component}_LIBRARY})
 
   endforeach()
 
+  list(APPEND CMAKE_DL_LIBS ${Boost_LIBRARIES})
+  # FIX: we should include lz elsewhere
   # iostreams must be linked with zlib
   list(APPEND Boost_LIBRARIES "-lz")
 
 endif()
-
-message("-- Boost: Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
-message("-- Boost: Boost_LIBRARY_DIRS = ${Boost_LIBRARY_DIRS}")
-message("-- Boost: Boost_LIBRARIES = ${Boost_LIBRARIES}")
